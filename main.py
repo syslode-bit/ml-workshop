@@ -7,6 +7,7 @@ Run locally:
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from fastapi.middleware.cors import CORSMiddleware
 import joblib
 import os
 
@@ -16,6 +17,13 @@ app = FastAPI(
     title="Sentiment Analysis API",
     description="Classifies a review as positive or negative.",
     version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # tighten to your static site URL later
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 try:
