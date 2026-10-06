@@ -1,68 +1,66 @@
 """
-Simple FastAPI app serving a scikit-learn model.
+FastAPI app serving a sentiment analysis model (positive / negative).
 
 Run locally:
     uvicorn main:app --reload
-
-Test it:
-    curl -X POST http://127.0.0.1:8000/predict \
-         -H "Content-Type: application/json" \
-         -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
 """
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 import joblib
-import numpy as np
 import os
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.pkl")
 
 app = FastAPI(
-    title="Getting Started with ML in Production API",
-    description="A minimal prediction API built for the workshop.",
+    title="Sentiment Analysis API",
+    description="Classifies a review as positive or negative.",
     version="1.0.0",
 )
 
-# Load the model once at startup
 try:
     model = joblib.load(MODEL_PATH)
 except FileNotFoundError:
     model = None
 
 
-class PredictionRequest(BaseModel):
-    features: list[float] = Field(
-        ..., min_length=4, max_length=4,
-        description="Iris features: [sepal_length, sepal_width, petal_length, petal_width]"
-    )
+class ReviewRequest(BaseModel):
+    text: str = Field(..., min_length=1, examples=["This movie was absolutely fantastic!"])
 
 
-class PredictionResponse(BaseModel):
-    prediction: int
-    class_name: str
+class ReviewResponse(BaseModel):
+    sentiment: str
+    confidence: float | None = None
 
 
-IRIS_CLASSES = ["setosa", "versicolor", "virginica"]
+LABELS = {0: "negative", 1: "positive"}
 
 
 @app.get("/")
 def root():
-    return {"message": "Workshop ML API is running. See /docs for usage."}
+    return {"message": "Sentiment API is running. See /docs for usage."}
 
 
 @app.get("/health")
 def health():
-    """Basic health check endpoint — useful for deployment platforms & load balancers."""
     return {"status": "ok", "model_loaded": model is not None}
 
 
-@app.post("/predict", response_model=PredictionResponse)
-def predict(request: PredictionRequest):
+@app.post("/predict", response_model=ReviewResponse)
+def predict(request: ReviewRequest):
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded. Did you run the training notebook?")
 
-    features = np.array(request.features).reshape(1, -1)
-    pred = int(model.predict(features)[0])
+    pred = model.predict([request.text])[0]
 
-    return PredictionResponse(prediction=pred, class_name=IRIS_CLASSES[pred])
+    # Works whether the model returns 0/1 or "positive"/"negative"
+    if isinstance(pred, str):
+        sentiment = pred.lower()
+    else:
+        sentiment = LABELS.get(int(pred), str(pred))
+
+    confidence = None
+    if hasattr(model, "predict_proba"):
+        confidence = round(float(max(model.predict_proba([request.text])[0])), 3)
+
+    return ReviewResponse(sentiment=sentiment, confidence=confidence)
