@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentiment Tester</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f4f5f7; display: flex;
+           justify-content: center; padding: 60px 16px; margin: 0; }
+    .card { background: white; max-width: 520px; width: 100%; padding: 28px;
+            border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    h1 { margin: 0 0 16px; font-size: 22px; }
+    textarea { width: 100%; box-sizing: border-box; height: 100px; padding: 12px;
+               font-size: 15px; border: 1px solid #ccc; border-radius: 8px; resize: vertical; }
+    button { margin-top: 12px; width: 100%; padding: 12px; font-size: 15px; font-weight: 600;
+             color: white; background: #2563eb; border: none; border-radius: 8px; cursor: pointer; }
+    button:disabled { background: #93a7d6; cursor: wait; }
+    #result { margin-top: 20px; padding: 16px; border-radius: 8px; font-size: 16px; display: none; }
+    .positive { background: #e7f6ec; color: #166534; }
+    .negative { background: #fdecec; color: #991b1b; }
+    .error    { background: #fff4e5; color: #92400e; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Sentiment Tester</h1>
+    <textarea id="text" placeholder="e.g. This product is really good"></textarea>
+    <button id="run" onclick="runModel()">Run model</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const API_URL = "https://sentiment-analysis-model-gctt.onrender.com";
+    async function runModel() {
+      const text = document.getElementById("text").value.trim();
+      const button = document.getElementById("run");
+      const result = document.getElementById("result");
+      result.style.display = "block";
+
+      if (!text) {
+        result.className = "error";
+        result.textContent = "Please enter a sentence first.";
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Running... (first run may take ~30s)";
+      try {
+        const res = await fetch(API_URL + "/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        const data = await res.json();
+        const pct = data.confidence !== null ? " (" + Math.round(data.confidence * 100) + "% confident)" : "";
+        result.className = data.sentiment;
+        result.textContent = "Sentiment: " + data.sentiment.toUpperCase() + pct;
+      } catch (err) {
+        result.className = "error";
+        result.textContent = "Something went wrong: " + err.message;
+      }
+      button.disabled = false;
+      button.textContent = "Run model";
+    }
+  </script>
+</body>
+</html>
