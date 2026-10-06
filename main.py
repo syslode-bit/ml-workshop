@@ -25,7 +25,7 @@ except FileNotFoundError:
 
 
 class ReviewRequest(BaseModel):
-    text: str = Field(..., min_length=1, examples=["This movie was absolutely fantastic!"])
+    text: str = Field(..., min_length=1, examples=["This product is really good!"])
 
 
 class ReviewResponse(BaseModel):
